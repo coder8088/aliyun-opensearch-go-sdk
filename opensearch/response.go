@@ -8,7 +8,7 @@ import (
 type SearchResponse struct {
 	Status    string   `json:"status"`
 	RequestId string   `json:"request_id"`
-	Result    Result   `json:"result"`
+	Res       *Result  `json:"result"`
 	Errors    []*Error `json:"errors"`
 }
 
