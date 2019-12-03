@@ -6,16 +6,18 @@ import (
 )
 
 type SearchResponse struct {
-	Status    string `json:"status"`
-	RequestId string `json:"request_id"`
-	Result    struct {
-		SearchTime float64 `json:"searchtime"`
-		Total      int     `json:"total"`
-		Num        int     `json:"num"`
-		ViewTotal  int     `json:"viewtotal"`
-		Items      []*Item `json:"items"`
-	} `json:"result"`
-	Errors []*Error `json:"errors"`
+	Status    string   `json:"status"`
+	RequestId string   `json:"request_id"`
+	Result    Result   `json:"result"`
+	Errors    []*Error `json:"errors"`
+}
+
+type Result struct {
+	SearchTime float64 `json:"searchtime"`
+	Total      int     `json:"total"`
+	Num        int     `json:"num"`
+	ViewTotal  int     `json:"viewtotal"`
+	Items      []*Item `json:"items"`
 }
 
 type Item struct {
