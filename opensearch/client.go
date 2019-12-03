@@ -20,7 +20,11 @@ const (
 	verb          = "GET"
 )
 
-type Client struct {
+type OpenSearch interface {
+	Search(req SearchRequest) (resp *SearchResponse, err error)
+}
+
+type client struct {
 	host            string
 	appName         string
 	accessKeyId     string
@@ -28,11 +32,11 @@ type Client struct {
 	inner           *http.Client
 }
 
-func NewClient(host, appName, accessKeyId, accessKeySecret string, httpClient *http.Client) *Client {
+func New(host, appName, accessKeyId, accessKeySecret string, httpClient *http.Client) OpenSearch {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return &Client{
+	return &client{
 		host:            host,
 		appName:         appName,
 		accessKeyId:     accessKeyId,
@@ -41,7 +45,7 @@ func NewClient(host, appName, accessKeyId, accessKeySecret string, httpClient *h
 	}
 }
 
-func (c *Client) Search(request SearchRequest) (response *SearchResponse, err error) {
+func (c *client) Search(request SearchRequest) (response *SearchResponse, err error) {
 	query, headers := buildQuery(c.appName, c.accessKeyId, c.accessKeySecret, request.Headers(), request.Params())
 	reqUrl := c.host + query
 
