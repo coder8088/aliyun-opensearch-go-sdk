@@ -1,17 +1,19 @@
 package opensearch
 
 import (
+	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"github.com/json-iterator/go"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -20,8 +22,12 @@ const (
 	verb          = "GET"
 )
 
+var (
+	json = jsoniter.ConfigCompatibleWithStandardLibrary
+)
+
 type OpenSearch interface {
-	Search(req SearchRequest) (resp *SearchResponse, err error)
+	Search(ctx context.Context, req SearchRequest) (resp *SearchResponse, err error)
 }
 
 type client struct {
@@ -29,7 +35,8 @@ type client struct {
 	appName         string
 	accessKeyId     string
 	accessKeySecret string
-	inner           *http.Client
+	http            *http.Client
+	pool            sync.Pool
 }
 
 func New(host, appName, accessKeyId, accessKeySecret string, httpClient *http.Client) OpenSearch {
@@ -41,15 +48,20 @@ func New(host, appName, accessKeyId, accessKeySecret string, httpClient *http.Cl
 		appName:         appName,
 		accessKeyId:     accessKeyId,
 		accessKeySecret: accessKeySecret,
-		inner:           httpClient,
+		http:            httpClient,
+		pool: sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 1024*1024)) // 512 Kb
+			},
+		},
 	}
 }
 
-func (c *client) Search(request SearchRequest) (response *SearchResponse, err error) {
+func (c *client) Search(ctx context.Context, request SearchRequest) (response *SearchResponse, err error) {
 	query, headers := buildQuery(c.appName, c.accessKeyId, c.accessKeySecret, request.Headers(), request.Params())
 	reqUrl := c.host + query
 
-	httpReq, err := http.NewRequest(verb, reqUrl, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, verb, reqUrl, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -57,22 +69,31 @@ func (c *client) Search(request SearchRequest) (response *SearchResponse, err er
 		httpReq.Header.Add(k, v)
 	}
 
-	resp, err := c.inner.Do(httpReq)
+	resp, err := c.http.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode < 100 || resp.StatusCode > 399 {
-		return nil, errors.New(fmt.Sprintf("error response, code: %v", resp.StatusCode))
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("error response, code: %v", resp.StatusCode)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	buffer := c.pool.Get().(*bytes.Buffer)
+	defer func() {
+		if buffer != nil {
+			c.pool.Put(buffer)
+			buffer = nil
+		}
+	}() // return buffer to pool
+
+	buffer.Reset()
+	_, err = io.Copy(buffer, resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client io.copy failure error:%v", err)
 	}
 
 	response = &SearchResponse{}
-	err = json.Unmarshal(body, response)
+	err = json.Unmarshal(buffer.Bytes(), response)
 	if err != nil {
 		return nil, err
 	}
