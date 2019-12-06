@@ -1,10 +1,5 @@
 package opensearch
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 type SearchResponse struct {
 	Status    string   `json:"status"`
 	RequestId string   `json:"request_id"`
@@ -28,9 +23,4 @@ type Item struct {
 type Error struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
-}
-
-func (resp *SearchResponse) Print() {
-	j, _ := json.Marshal(resp)
-	fmt.Println(string(j))
 }
