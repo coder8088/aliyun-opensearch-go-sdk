@@ -2,7 +2,6 @@ package opensearch
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -48,20 +47,12 @@ func (h requestHeaders) Canonicalize() string {
 	}
 
 	result := ""
-	keys := SortedKeys(headers)
+	keys := sortedKeys(headers)
 	for _, k := range keys {
 		result += fmt.Sprintf("%s:%s\n", strings.ToLower(k), headers[k])
 	}
 
 	return result
-}
-
-func SortedKeys(m map[string]string) (keys []string) {
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return
 }
 
 type SimpleSearchRequest struct {
