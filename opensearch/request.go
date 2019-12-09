@@ -10,51 +10,6 @@ type SearchRequest interface {
 	Params() map[string]string
 }
 
-type Headers interface {
-	Header(key, defaultValue string) string
-}
-
-type Canonicalizer interface {
-	Canonicalize() string
-}
-
-type CanonicalizableHeaders interface {
-	Headers
-	Canonicalizer
-}
-
-type requestHeaders map[string]string
-
-func (h requestHeaders) Header(key, defaultValue string) string {
-	if val, ok := h[key]; ok && len(val) > 0 {
-		return val
-	}
-	return defaultValue
-}
-
-func (h requestHeaders) Canonicalize() string {
-	headers := make(map[string]string)
-	for k, v := range h {
-		key := strings.TrimSpace(k)
-		value := strings.TrimSpace(v)
-		if strings.HasPrefix(key, "X-Opensearch-") && len(value) > 0 {
-			headers[key] = value
-		}
-	}
-
-	if len(headers) == 0 {
-		return ""
-	}
-
-	result := ""
-	keys := sortedKeys(headers)
-	for _, k := range keys {
-		result += fmt.Sprintf("%s:%s\n", strings.ToLower(k), headers[k])
-	}
-
-	return result
-}
-
 type SimpleSearchRequest struct {
 	FetchFields []string
 	Start       int
